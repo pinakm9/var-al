@@ -1,0 +1,2 @@
+model_checkpoint_path: "helicoid-al"
+all_model_checkpoint_paths: "helicoid-al"
