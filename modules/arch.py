@@ -29,12 +29,12 @@ class LSTMForgetNet(tf.keras.models.Model):
         num_nodes: number of nodes in each LSTM layer
         num_layers: number of LSTM layers
     """
-    def __init__(self, num_nodes, num_blocks, dtype=tf.float32, name = 'LSTMForgetNet'):
+    def __init__(self, num_nodes, num_blocks, dtype=tf.float32, name = 'LSTMForgetNet', dim=1):
         super().__init__(dtype=dtype, name=name)
         self.num_nodes = num_nodes
         self.num_blocks = num_blocks
         self.lstm_blocks = [LSTMForgetBlock(num_nodes, dtype=dtype) for _ in range(num_blocks)]
-        self.final_dense = tf.keras.layers.Dense(units=1, activation=None, dtype=dtype)
+        self.final_dense = tf.keras.layers.Dense(units=dim, activation=None, dtype=dtype)
         self.batch_norm = tf.keras.layers.BatchNormalization(axis=1)
         
         
@@ -45,14 +45,14 @@ class LSTMForgetNet(tf.keras.models.Model):
         c = tf.zeros((x.shape[0], self.num_nodes), dtype=self.dtype)
         for i in range(self.num_blocks):
             h, c = self.lstm_blocks[i](x, h, c)
-            h = self.batch_norm(h)
-            c = self.batch_norm(c)
+            # h = self.batch_norm(h)
+            # c = self.batch_norm(c)
         y = self.final_dense(h)
         return y
 
 class VanillaNet(tf.keras.models.Model):
 
-    def __init__(self, num_nodes, num_layers, dtype=tf.float32, name='VanillaNet'):
+    def __init__(self, num_nodes, num_layers, dtype=tf.float32, name='VanillaNet', dim=1):
         super().__init__(dtype=dtype, name=name)
         self.num_nodes = num_nodes
         self.num_layers = num_layers 
@@ -60,13 +60,13 @@ class VanillaNet(tf.keras.models.Model):
             self.dense_layers = [tf.keras.layers.Dense(units=num_nodes[i], activation=tf.keras.activations.tanh) for i in range(num_layers)]
         else:
             self.dense_layers = [tf.keras.layers.Dense(units=num_nodes, activation=tf.keras.activations.tanh) for _ in range(num_layers)]
-        self.final_dense = tf.keras.layers.Dense(units=1, activation=None, dtype=dtype)
+        self.final_dense = tf.keras.layers.Dense(units=dim, activation=None, dtype=dtype)
         self.batch_norms = [tf.keras.layers.BatchNormalization() for _ in range(num_layers)]
 
     def call(self, *args):
         x = tf.concat(args, axis=1)
         for i in range(self.num_layers):
             x = self.dense_layers[i](x)
-            x = self.batch_norms[i](x)
+            #x = self.batch_norms[i](x)
         y = self.final_dense(x)
         return y

@@ -141,6 +141,35 @@ class Gauss_Legendre_2D():
 
     
 
+
+class Trapezoidal_2D():
+    """
+    Description: Class for defining Gauss-Legendre quadrature
+    """
+    def __init__(self, domain, num, dtype='float32'):
+        self.domain = domain 
+        self.dtype = dtype
+        self.nodes = [[], []]
+        self.weights = [[], []]
+        self.set_nodes(0, num)
+        self.set_nodes(1, num)
+        self.x, self.y = np.meshgrid(self.nodes[0], self.nodes[1])
+        self.wx, self.wy = np.meshgrid(self.weights[0], self.weights[1])
+        self.x = self.x.reshape(-1, 1)
+        self.y = self.y.reshape(-1, 1)
+        self.wx = self.wx.reshape(-1, 1)
+        self.wy = self.wy.reshape(-1, 1)
+        self.w = self.wx * self.wy
+
+    def set_nodes(self, i, num):
+        self.nodes[i] = np.linspace(self.domain[0][i], self.domain[1][i], num=num+1, endpoint=True, dtype=self.dtype)
+        self.h = (self.domain[1][i] - self.domain[0][i]) / num
+        self.weights[i] = np.ones(len(self.nodes[i])) 
+        self.weights[i][0] = 0.5 
+        self.weights[i][-1] = 0.5
+        self.weights[i] *= self.h
+
+
 # Code for testing
 # import scipy.integrate as integrate
 # domain = [0.001, 20.]
