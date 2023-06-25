@@ -78,7 +78,7 @@ class Solver:
         self.save_folder = save_folder
         if model_path is not None:
             self.net.load_weights(model_path).expect_partial()
-        self.r0, self.t0 = domain_sampler(100000)
+    
 
     def error(self):
         e = L2_error(self.net)
