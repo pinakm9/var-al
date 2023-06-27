@@ -1,0 +1,2 @@
+model_checkpoint_path: "sphere-brac_ref"
+all_model_checkpoint_paths: "sphere-brac_ref"

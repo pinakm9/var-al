@@ -1,2 +1,2 @@
-model_checkpoint_path: "helicoid_11800"
-all_model_checkpoint_paths: "helicoid_11800"
+model_checkpoint_path: "helicoid"
+all_model_checkpoint_paths: "helicoid"

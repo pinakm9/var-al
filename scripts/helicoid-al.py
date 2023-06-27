@@ -155,11 +155,11 @@ class Solver:
             if epoch % 1000==0:
                 a_, b_ = loss_a.numpy(), 0.5*b.numpy()*loss_b.numpy()
                 c_ = np.ceil(np.log10(b_/a_))
-                if a_> 1. and b_ < a_ and c_ < 0.:
-                    g = np.float32(10**c_) * tf.ones_like(b)
+                # if a_> 1. and b_ < a_ and c_ < 0.:
+                g = np.float32(10**c_) * tf.ones_like(b)
         pd.DataFrame(log).to_csv('{}/train_log.csv'.format(self.save_folder), index=None)
         self.net.save_weights('{}/{}'.format(self.save_folder, self.net.name))
 
             
 save_folder = '../data/helicoid-al'
-Solver(save_folder=save_folder).learn(epochs=100000, n_sample=int(1e3))
+Solver(save_folder=save_folder).learn(epochs=50000, n_sample=int(1e3))
