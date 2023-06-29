@@ -70,3 +70,31 @@ class VanillaNet(tf.keras.models.Model):
             #x = self.batch_norms[i](x)
         y = self.final_dense(x)
         return y
+    
+
+class CyclicLR(tf.keras.optimizers.schedules.LearningRateSchedule):
+
+  def __init__(self, initial_learning_rate, decay_rate, decay_steps,\
+                     final_learning_rate, final_decay_rate, final_decay_steps, drop, tipping_point):
+    self.initial_learning_rate = initial_learning_rate
+    self.decay_rate = decay_rate
+    self.decay_steps = decay_steps
+    self.final_decay_steps = final_decay_steps
+    self.final_learning_rate = final_learning_rate
+    self.final_decay_rate = final_decay_rate
+    self.tipping_point = tipping_point
+    self.drop = drop
+
+  def __call__(self, step):
+    a = 1 - tf.nn.relu(tf.sign(step-self.tipping_point))
+    A = step%self.decay_steps
+    B = step - self.tipping_point
+    C = self.decay_steps
+    D = self.final_decay_steps
+    E = (a*A + (1-a)*B) / (a*C + (1-a)*D)
+    F = (a*self.initial_learning_rate*(self.drop)**tf.math.floor(step/self.decay_steps) + (1-a)*self.final_learning_rate)
+    G = a*self.decay_rate + (1-a)*self.final_decay_rate
+    return F * G ** E
+   
+    
+

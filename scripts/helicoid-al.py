@@ -13,6 +13,10 @@ import pandas as pd
 import numpy as np
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+seed = 42
+np.random.seed(seed)
+tf.random.set_seed(seed)
+
 
 DTYPE = 'float32'
 
@@ -86,9 +90,9 @@ class Solver:
         return e.numpy(), o.numpy(), (o/objective-1.).numpy(), ce.numpy()
 
     @tf.function
-    def train_step(self, r, t, b, g):
+    def train_step(self, r, t, b):
         with tf.GradientTape() as tape:
-            loss_a = area(self.net) * g
+            loss_a = area(self.net)
             loss_b = tf.reduce_mean(helix_boundary(self.net, t)**2)
             loss_m = tf.reduce_mean(helix_boundary(self.net, t) * self.mul(t))
             L = loss_a + 0.5*b*loss_b + loss_m 
@@ -106,24 +110,31 @@ class Solver:
         return L
 
     def learn(self, epochs=10000, n_sample=1000):
-        ir, dr = 1e-3, 1e-3
-        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(ir, decay_steps=epochs, decay_rate=dr, staircase=False)
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-        lr_schedule_mul = tf.keras.optimizers.schedules.ExponentialDecay(ir, decay_steps=epochs, decay_rate=dr, staircase=False)
-        self.optimizer_mul = tf.keras.optimizers.Adam(learning_rate=lr_schedule_mul)
         print("{:>6}{:>12}{:>12}{:>12}{:>8}{:>12}{:>18}"\
               .format('iteration', 'loss_a', 'loss_b', 'loss_m', 'loss', 'loss_mul', 'runtime(s)'))
         start = time.time()
         log = {'iteration': [], 'beta': [], 'loss_a': [], 'loss_b': [], 'loss_m': [], 'loss': [], 'loss_mul': [],\
                 'L2-error': [], 'objective': [], 'objective-error': [], 'constraint-error': [], 'runtime': []}
-   
-        b = tf.constant(1., dtype=DTYPE)
-        g = b/b
-        epoch, tau = 0, 10
+        epoch, tau, b0, delb, maxb = 0, 10, 1, 10, 10000
+        initial_rate = 1e-4
+        decay_rate = 1e-1
+        decay_steps = int(2*tau)
+        final_learning_rate = 1e-5
+        final_decay_rate = 1e-1
+        drop = 1.
+        tipping_point = int(2*tau*(maxb-b0)/delb)
+        final_decay_steps = epochs - tipping_point
+        lr_schedule = arch.CyclicLR(initial_rate, decay_rate, decay_steps,final_learning_rate, final_decay_rate, final_decay_steps,\
+                            drop, tipping_point)
+        lr_schedule_mul = arch.CyclicLR(initial_rate, decay_rate, decay_steps,final_learning_rate, final_decay_rate, final_decay_steps,\
+                            drop, tipping_point)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+        self.optimizer_mul = tf.keras.optimizers.Adam(learning_rate=lr_schedule_mul)
+        b = tf.constant(b0, dtype=DTYPE)
         r, t = domain_sampler(n_sample)
         while epoch < epochs+1:
             for _ in range(tau):
-                loss_a, loss_b, loss_m, L = self.train_step(r, t, b, g)
+                loss_a, loss_b, loss_m, L = self.train_step(r, t, b)
             mu_0 = self.mul(t)
             for _ in range(tau):
                 loss_mul = self.train_step_mul(mu_0, t, b)
@@ -148,15 +159,12 @@ class Solver:
             
             epoch += 2*tau
 
-            if b < 10000:
-                b += 10.
+            if b < maxb:
+                b += delb
             r, t = domain_sampler(n_sample)
 
-            if epoch % 1000==0:
-                a_, b_ = loss_a.numpy(), 0.5*b.numpy()*loss_b.numpy()
-                c_ = np.ceil(np.log10(b_/a_))
-                # if a_> 1. and b_ < a_ and c_ < 0.:
-                g = np.float32(10**c_) * tf.ones_like(b)
+  
+                
         pd.DataFrame(log).to_csv('{}/train_log.csv'.format(self.save_folder), index=None)
         self.net.save_weights('{}/{}'.format(self.save_folder, self.net.name))
 

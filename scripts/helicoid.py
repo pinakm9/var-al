@@ -14,6 +14,9 @@ import pandas as pd
 import numpy as np
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+seed = 42
+np.random.seed(seed)
+tf.random.set_seed(seed)
 
 DTYPE = 'float32'
 
@@ -87,9 +90,9 @@ class Solver:
         return e.numpy(), o.numpy(), (o/objective-1.).numpy(), ce.numpy()
 
     @tf.function
-    def train_step(self, r, t, b, g):
+    def train_step(self, r, t, b):
         with tf.GradientTape() as tape:
-            loss_a = area(self.net) * g
+            loss_a = area(self.net) 
             loss_b = tf.reduce_mean(helix_boundary(self.net, t)**2)
             L = loss_a + 0.5*b*loss_b
         grads = tape.gradient(L, self.net.trainable_weights)
@@ -97,18 +100,26 @@ class Solver:
         return loss_a, loss_b, L
 
     def learn(self, epochs=10000, n_sample=1000):
-        lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(1e-3, decay_steps=epochs, decay_rate=1e-3, staircase=False)
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
         print("{:>6}{:>12}{:>12}{:>12}{:>18}".format('iteration', 'loss_a', 'loss_b', 'loss', 'runtime(s)'))
         start = time.time()
         log = {'iteration': [], 'beta': [], 'loss_a': [], 'loss_b': [], 'loss': [],  'L2-error': [],\
               'objective': [], 'objective-error': [], 'constraint-error': [], 'runtime': []}
-        b = tf.constant(1., dtype=DTYPE)
-        g = b/b
-        epoch, tau = 0, 10
+        epoch, tau, b0, delb, maxb = 0, 10, 1, 10, 10000
+        initial_rate = 1e-4
+        decay_rate = 1e-1
+        decay_steps = int(2*tau)
+        final_learning_rate = 1e-5
+        final_decay_rate = 1e-1
+        drop = 1.
+        tipping_point = int(2*tau*(maxb-b0)/delb)
+        final_decay_steps = epochs - tipping_point
+        lr_schedule = arch.CyclicLR(initial_rate, decay_rate, decay_steps,final_learning_rate, final_decay_rate, final_decay_steps,\
+                            drop, tipping_point)
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+        b = tf.constant(b0, dtype=DTYPE)
         r, t = domain_sampler(n_sample)
         while epoch < epochs+1:
-            loss_a, loss_b, L = self.train_step(r, t, b, g)
+            loss_a, loss_b, L = self.train_step(r, t, b)
             if epoch % 10 == 0:
                 step_details = [epoch, loss_a.numpy(), loss_b.numpy(), L.numpy(), time.time()-start]
                 print('{:6d}{:15.6f}{:15.6f}{:12.6f}{:12.4f}'.format(*step_details))
@@ -129,15 +140,10 @@ class Solver:
             epoch += 1
 
             if epoch % 2*tau == 0:
-                if b < 10000:
-                    b += 10.
+                if b < maxb:
+                    b += delb
                 r, t = domain_sampler(n_sample)
 
-            if epoch % 1000==0:
-                a_, b_ = loss_a.numpy(), 0.5*b.numpy()*loss_b.numpy()
-                c_ = np.ceil(np.log10(b_/a_))
-                # if a_> 1. and b_ < a_ and c_ < 0.:
-                g = np.float32(10**c_) * tf.ones_like(b)
         pd.DataFrame(log).to_csv('{}/train_log.csv'.format(self.save_folder), index=None)
         self.net.save_weights('{}/{}'.format(self.save_folder, self.net.name))
 
