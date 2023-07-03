@@ -34,6 +34,12 @@ X2 /= np.sqrt(1. - np.dot(X0, X1)**2)
 objective = np.arccos(np.dot(X0, X1))
 print(objective)
 
+dtheta = theta_1 - theta_0
+tan0, tan1 = np.tan(theta_0), np.tan(theta_1)
+sindt, tandt = np.sin(dtheta), np.tan(dtheta)
+b = phi_1 + np.arctan(1./tandt - tan1/(tan0 * sindt))
+a = 1./(tan1 * np.cos(phi_1 - b))
+
 # points end =========< end
 
 
@@ -45,11 +51,7 @@ def keep_neg(x):
     return 1-out
 
 def true_phi(t):
-    t1 = objective * (t - theta_0) / (theta_1 - theta_0)
-    x = tf.cos(t1) * X0[0] + tf.sin(t1) * X2[0]
-    y = tf.cos(t1) * X0[1] + tf.sin(t1) * X2[1]
-    phi = tf.atan2(y, x)
-    return phi + keep_neg(phi) * 2. * np.pi
+    return np.arccos(1./(a * np.tan(t))) + b
 
 #65 true great circle ============< end
 
@@ -192,21 +194,18 @@ class Solver:
         start = time.time()
         log = {'iteration': [], 'beta': [], 'loss_a': [], 'loss_b': [], 'loss_m': [], 'loss': [], 'loss_mul': [],\
                 'L2-error': [], 'objective': [], 'objective-error': [], 'constraint-error': [], 'runtime': []}
-        epoch, tau, b0, delb, maxb = 0, 1, 1, 1, 1000
+        epoch, tau, b0, delb, maxb = 0, 10, 100, 1.01, 500
         initial_rate = 1e-3
         decay_rate = 1e-1
         decay_steps = int(2*tau)
         final_learning_rate = 1e-4
-        final_decay_rate = 1e-1
-        drop = 0.999
+        final_decay_rate = 1
+        drop = 1.
         tipping_point = int(2*tau*(maxb-b0)/delb)
         final_decay_steps = epochs - tipping_point
         lr_schedule = arch.CyclicLR(initial_rate, decay_rate, decay_steps,final_learning_rate, final_decay_rate, final_decay_steps,\
                             drop, tipping_point)
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-        # lr_schedule_mul = arch.CyclicLR(initial_rate, decay_rate, decay_steps, final_decay_steps, tipping_point)
-        # self.optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-        # self.optimizer_mul = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
         b = tf.constant(b0, dtype=DTYPE)
         while epoch < epochs+1:
             for _ in range(tau):
@@ -235,7 +234,7 @@ class Solver:
             epoch += 2*tau
 
             if b < maxb:
-                b += delb
+                b *= delb
 
             
         pd.DataFrame(log).to_csv('{}/train_log.csv'.format(self.save_folder), index=None)

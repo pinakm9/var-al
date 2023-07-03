@@ -35,6 +35,12 @@ X2 /= np.sqrt(1. - np.dot(X0, X1)**2)
 objective = np.arccos(np.dot(X0, X1))
 print(objective)
 
+dtheta = theta_1 - theta_0
+tan0, tan1 = np.tan(theta_0), np.tan(theta_1)
+sindt, tandt = np.sin(dtheta), np.tan(dtheta)
+b = phi_1 + np.arctan(1./tandt - tan1/(tan0 * sindt))
+a = 1./(tan1 * np.cos(phi_1 - b))
+
 # points end =========< end
 
 
@@ -46,12 +52,7 @@ def keep_neg(x):
     return 1-out
 
 def true_phi(t):
-    t1 = objective * (t - theta_0) / (theta_1 - theta_0)
-    x = tf.cos(t1) * X0[0] + tf.sin(t1) * X2[0]
-    y = tf.cos(t1) * X0[1] + tf.sin(t1) * X2[1]
-    phi = tf.atan2(y, x)
-    return phi + keep_neg(phi) * 2. * np.pi
-
+    return np.arccos(1./(a * np.tan(t))) + b
 #65 true great circle ============< end
 
 # exit()
@@ -69,7 +70,7 @@ def domain_sampler(n_sample):
     return t
 
 
-gl = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=20, d=5, dtype=DTYPE)
+gl = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=100, d=4, dtype=DTYPE)
 t0, w0 = tf.convert_to_tensor(gl.nodes.reshape(-1, 1), dtype=DTYPE), tf.convert_to_tensor(gl.weights.reshape(-1, 1), dtype=DTYPE)
 
 @tf.function
@@ -170,7 +171,7 @@ class Solver:
         return e.numpy(), o.numpy(), (o/objective-1.).numpy(), ce
 
     @tf.function
-    def train_step(self, t, b, g):
+    def train_step(self, t, b):
         with tf.GradientTape() as tape:
             loss_a = length(self.net) 
             loss_b = boundary(self.net, t)
@@ -184,13 +185,13 @@ class Solver:
         start = time.time()
         log = {'iteration': [], 'theta_1': [], 'loss_a': [], 'loss_b': [], 'loss': [],  'L2-error': [],\
               'objective': [], 'objective-error': [], 'constraint-error': [], 'runtime': []}
-        epoch, tau, b0, delb, maxb = 0, 1, 1, 1, 1000
+        epoch, tau, b0, delb, maxb = 0, 10, 100, 1.01, 500
         initial_rate = 1e-3
         decay_rate = 1e-1
         decay_steps = int(2*tau)
         final_learning_rate = 1e-4
-        final_decay_rate = 1e-1
-        drop = 0.999
+        final_decay_rate = 1.
+        drop = 1.0
         tipping_point = int(2*tau*(maxb-b0)/delb)
         final_decay_steps = epochs - tipping_point
         lr_schedule = arch.CyclicLR(initial_rate, decay_rate, decay_steps,final_learning_rate, final_decay_rate, final_decay_steps,\
@@ -202,7 +203,7 @@ class Solver:
         t = domain_sampler(n_sample)
         past_a, tol = g*1., 1e-2
         while epoch < epochs+1:
-            loss_a, loss_b, L = self.train_step(t, b, g)
+            loss_a, loss_b, L = self.train_step(t, b)
             if epoch % 10 == 0:
                 step_details = [epoch, loss_a.numpy(), loss_b.numpy(), L.numpy(), time.time()-start]
                 print('{:6d}{:15.6f}{:15.6f}{:12.6f}{:12.4f}'.format(*step_details))
@@ -224,7 +225,7 @@ class Solver:
 
             if epoch % 2*tau == 0:
                 if b < maxb:
-                    b += delb
+                    b *= delb
                 t = domain_sampler(n_sample)
 
         pd.DataFrame(log).to_csv('{}/train_log.csv'.format(self.save_folder), index=None)

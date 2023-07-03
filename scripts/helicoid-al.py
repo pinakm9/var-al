@@ -61,7 +61,7 @@ def L2_error(u):
     return tf.sqrt(tf.reduce_sum(f * w0) / tf.reduce_sum(r0 * w0))
 
 
-gl = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=10, dtype=DTYPE, d=2)
+gl = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=20, dtype=DTYPE, d=4)
 tb, wb = tf.convert_to_tensor(gl.nodes.reshape(-1, 1), dtype=DTYPE), tf.convert_to_tensor(gl.weights.reshape(-1, 1), dtype=DTYPE)
 
 @tf.function
@@ -115,12 +115,12 @@ class Solver:
         start = time.time()
         log = {'iteration': [], 'beta': [], 'loss_a': [], 'loss_b': [], 'loss_m': [], 'loss': [], 'loss_mul': [],\
                 'L2-error': [], 'objective': [], 'objective-error': [], 'constraint-error': [], 'runtime': []}
-        epoch, tau, b0, delb, maxb = 0, 10, 1, 10, 10000
+        epoch, tau, b0, delb, maxb = 0, 10, 100, 1.01, 5000
         initial_rate = 1e-4
         decay_rate = 1e-1
         decay_steps = int(2*tau)
         final_learning_rate = 1e-5
-        final_decay_rate = 1e-1
+        final_decay_rate = 9e-1
         drop = 1.
         tipping_point = int(2*tau*(maxb-b0)/delb)
         final_decay_steps = epochs - tipping_point
@@ -132,6 +132,7 @@ class Solver:
         self.optimizer_mul = tf.keras.optimizers.Adam(learning_rate=lr_schedule_mul)
         b = tf.constant(b0, dtype=DTYPE)
         r, t = domain_sampler(n_sample)
+        flag = True
         while epoch < epochs+1:
             for _ in range(tau):
                 loss_a, loss_b, loss_m, L = self.train_step(r, t, b)
@@ -160,7 +161,7 @@ class Solver:
             epoch += 2*tau
 
             if b < maxb:
-                b += delb
+                b *= delb
             r, t = domain_sampler(n_sample)
 
   
@@ -170,4 +171,4 @@ class Solver:
 
             
 save_folder = '../data/helicoid-al'
-Solver(save_folder=save_folder).learn(epochs=50000, n_sample=int(1e3))
+Solver(save_folder=save_folder).learn(epochs=20000, n_sample=int(1e3))
