@@ -157,7 +157,7 @@ class VanillaNet(tf.keras.models.Model):
 class Solver:
 
     def __init__(self, save_folder, model_path=None) -> None:
-        self.net =  VanillaNet(50, 10, DTYPE, name='sphere-geodesic')
+        self.net =  LSTMForgetNet(50, 3, DTYPE, name='sphere-geodesic')
         self.mul = tf.constant(0., dtype=DTYPE)
         self.save_folder = save_folder
         if model_path is not None:
@@ -199,7 +199,7 @@ class Solver:
         decay_rate = 1e-1
         decay_steps = int(2*tau)
         final_learning_rate = 1e-4
-        final_decay_rate = 1
+        final_decay_rate = 1e-1
         drop = 1.
         tipping_point = int(2*tau*(maxb-b0)/delb)
         final_decay_steps = epochs - tipping_point

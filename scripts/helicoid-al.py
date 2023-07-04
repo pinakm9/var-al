@@ -61,13 +61,13 @@ def L2_error(u):
     return tf.sqrt(tf.reduce_sum(f * w0) / tf.reduce_sum(r0 * w0))
 
 
-gl = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=20, dtype=DTYPE, d=4)
-tb, wb = tf.convert_to_tensor(gl.nodes.reshape(-1, 1), dtype=DTYPE), tf.convert_to_tensor(gl.weights.reshape(-1, 1), dtype=DTYPE)
+gl1 = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=20, dtype=DTYPE, d=4)
+t1, w1 = tf.convert_to_tensor(gl1.nodes.reshape(-1, 1), dtype=DTYPE), tf.convert_to_tensor(gl1.weights.reshape(-1, 1), dtype=DTYPE)
 
 @tf.function
 def constraint_error(u):
-    f = (helix_boundary(u, tb))**2
-    return tf.sqrt(tf.reduce_sum(f * wb) / tf.reduce_sum(wb))
+    f = (helix_boundary(u, t1))**2
+    return tf.sqrt(tf.reduce_sum(f * w1) / tf.reduce_sum(w1))
 
 """
 Things to track: 1) area or main loss, 2) boundary loss, 3) runtime, 4) iteration, 5) save every 100 steps
@@ -117,10 +117,10 @@ class Solver:
                 'L2-error': [], 'objective': [], 'objective-error': [], 'constraint-error': [], 'runtime': []}
         epoch, tau, b0, delb, maxb = 0, 10, 100, 1.01, 5000
         initial_rate = 1e-4
-        decay_rate = 1e-1
+        decay_rate = 2e-1
         decay_steps = int(2*tau)
-        final_learning_rate = 1e-5
-        final_decay_rate = 9e-1
+        final_learning_rate = 1e-4
+        final_decay_rate = 1e-1
         drop = 1.
         tipping_point = int(2*tau*(maxb-b0)/delb)
         final_decay_steps = epochs - tipping_point
