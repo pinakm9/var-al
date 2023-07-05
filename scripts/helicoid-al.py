@@ -36,7 +36,7 @@ def domain_sampler(n_sample, low=[0., tb[0]], high=[1., tb[1]]):
     return r, t
 
 
-gl = it.Gauss_Legendre_2D(domain = [[0., tb[0]], [1., tb[1]]], num=20, dtype=DTYPE, d=4)
+gl = it.Gauss_Legendre_2D(domain = [[0., tb[0]], [1., tb[1]]], num=50, dtype=DTYPE, d=2)
 r0, t0, w0 = tf.convert_to_tensor(gl.x, dtype=DTYPE), tf.convert_to_tensor(gl.y, dtype=DTYPE), tf.convert_to_tensor(gl.w, dtype=DTYPE)
 
 
@@ -61,7 +61,7 @@ def L2_error(u):
     return tf.sqrt(tf.reduce_sum(f * w0) / tf.reduce_sum(r0 * w0))
 
 
-gl1 = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=20, dtype=DTYPE, d=4)
+gl1 = it.Gauss_Legendre(domain = [tb[0], tb[1]], num=100, dtype=DTYPE, d=4)
 t1, w1 = tf.convert_to_tensor(gl1.nodes.reshape(-1, 1), dtype=DTYPE), tf.convert_to_tensor(gl1.weights.reshape(-1, 1), dtype=DTYPE)
 
 @tf.function
