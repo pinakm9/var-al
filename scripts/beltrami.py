@@ -44,7 +44,7 @@ def energy(u, x, y, z):
 
 objective = 1.5 
 
-x0, y0, z0 = domain_sampler(int(1e5))
+x0, y0, z0 = domain_sampler(int(1e4))
 
 @tf.function
 def energy_0(u):
@@ -52,16 +52,16 @@ def energy_0(u):
 
 
 @tf.function
-def L2_error(u):
-    f = tf.reduce_sum((u(x0, y0, z0) - true(x0, y0, z0))**2, axis=-1, keepdims=True)  
+def L2_error(u, x, y, z):
+    f = tf.reduce_sum((u(x, y, z) - true(x, y, z))**2, axis=-1, keepdims=True)  
     return tf.sqrt(tf.reduce_mean(f))
 
 
 xb, yb, zb = boundary_sampler(int(1e4))
 
 @tf.function
-def constraint_error(u):
-    f = boundary(u, xb, yb, zb)
+def constraint_error(u, x, y, z):
+    f = boundary(u, x, y, z)
     return tf.sqrt(f)
 
 def curl(f, x, y, z):
@@ -90,10 +90,10 @@ class Solver:
         return curl(self.net, x, y, z)
     
 
-    def error(self):
-        e = L2_error(self.B)
+    def error(self, x, y, z, x_, y_, z_):
+        e = L2_error(self.B, x, y, z)
         o = energy_0(self.B)
-        ce = constraint_error(self.B)
+        ce = constraint_error(self.B, x_, y_, z_)
         return e.numpy(), o.numpy(), (o/objective-1.).numpy(), ce.numpy()
 
     @tf.function
@@ -132,7 +132,7 @@ class Solver:
                 step_details = [epoch, loss_a.numpy(), loss_b.numpy(), L.numpy(), time.time()-start]
                 print('{:6d}{:15.6f}{:15.6f}{:12.6f}{:12.4f}'.format(*step_details))
                 if epoch % 100 == 0:
-                    error, objective, objective_error, ce = self.error()
+                    error, objective, objective_error, ce = self.error(x, y, z, x_, y_, z_)
                     log['iteration'].append(step_details[0])
                     log['loss_a'].append(step_details[1])
                     log['loss_b'].append(step_details[2])
