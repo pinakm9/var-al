@@ -223,7 +223,7 @@ class Solver:
                 
             epoch += 1
 
-            if epoch % 2*tau == 0:
+            if epoch % tau == 0:
                 if b < maxb:
                     b *= delb
                 t = domain_sampler(n_sample)

@@ -210,7 +210,7 @@ class Solver:
         while epoch < epochs+1:
             for _ in range(tau):
                 loss_a, loss_b, loss_m, L = self.train_step(b)
-            for _ in range(tau):
+            for _ in range(1):
                 loss_mul = self.train_step_mul(b)
             if epoch % 10 == 0:
                 step_details = [epoch, loss_a.numpy(), loss_b.numpy(), loss_m.numpy(), L.numpy(), loss_mul.numpy(), time.time()-start]
@@ -231,10 +231,10 @@ class Solver:
                     log['runtime'].append(step_details[6])
                     self.net.save_weights('{}/{}_{}'.format(self.save_folder, self.net.name, epoch))
             
-            epoch += 2*tau
-
-            if b < maxb:
-                b *= delb
+            epoch += tau
+            if epoch % tau == 0:
+                if b < maxb:
+                    b *= delb
 
             
         pd.DataFrame(log).to_csv('{}/train_log.csv'.format(self.save_folder), index=None)

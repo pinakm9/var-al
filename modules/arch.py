@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 class LSTMForgetBlock(tf.keras.layers.Layer):
     def __init__(self, num_nodes, dtype=tf.float32):
@@ -95,6 +96,34 @@ class CyclicLR(tf.keras.optimizers.schedules.LearningRateSchedule):
     F = (a*self.initial_learning_rate*(self.drop)**tf.math.floor(step/self.decay_steps) + (1-a)*self.final_learning_rate)
     G = a*self.decay_rate + (1-a)*self.final_decay_rate
     return F * G ** E
-   
+  
+
+class CyclicLR_NP:
+
+    def __init__(self, initial_learning_rate, decay_rate, decay_steps,\
+                        final_learning_rate, final_decay_rate, final_decay_steps, drop, tipping_point):
+        self.initial_learning_rate = initial_learning_rate
+        self.decay_rate = decay_rate
+        self.decay_steps = decay_steps
+        self.final_decay_steps = final_decay_steps
+        self.final_learning_rate = final_learning_rate
+        self.final_decay_rate = final_decay_rate
+        self.tipping_point = tipping_point
+        self.drop = drop
+
+    def relu(self, x):
+        return x * (x > 0.)
+
+    def __call__(self, step):
+        a = 1 if step < self.tipping_point else 0.
+        A = step%self.decay_steps
+        B = step - self.tipping_point
+        C = self.decay_steps
+        D = self.final_decay_steps
+        E = (a*A + (1-a)*B) / (a*C + (1-a)*D)
+        F = (a*self.initial_learning_rate*(self.drop)**np.floor(step/self.decay_steps) + (1-a)*self.final_learning_rate)
+        G = a*self.decay_rate + (1-a)*self.final_decay_rate
+        return F * G ** E
     
+        
 
